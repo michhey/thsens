@@ -132,18 +132,6 @@ static void env_sendMessage(const char* message) {
 #endif
 }
 
-
-// EuroChron / Tchibo
-//                /--------------------------- Channel, changes after every battery change      
-//               /        / ------------------ Battery state 0 == Ok      
-//              /        / /------------------ unknown      
-//             /        / /  / --------------- forced send      
-//            /        / /  /  / ------------- unknown      
-//           /        / /  /  /     / -------- Humidity      
-//          /        / /  /  /     /       / - neg Temp: if 1 then temp = temp - 2048
-//         /        / /  /  /     /       /  / Temp
-//         01100010 1 00 1  00000 0100011 0  00011011101
-// Bit     0        8 9  11 12    17      24 25        36
 static String generateEnvMessage(uint8_t deviceId, uint8_t channel, bool battOk, bool manualSend, uint8_t trend, float temperature, float humidity) {
   String message = "";
   // ID Part 1
@@ -180,10 +168,6 @@ char rxBuffer[32];
 char txBuf[37];
 
 /*
-
- Bit-Stream: 1000 10 10 0 01 1 101111110000 11100011 1000
- IIII CC II B TT F tttttttttttt hhhhhhhh cccc
- 
  I  Device Id
  C  Channel
  B  Battery low
@@ -193,7 +177,6 @@ char txBuf[37];
  h  humidity
  c  checksum
  */
-
 static void sendEnv() {
   float temperature = dht.readTemperature();
   float humidity = dht.readHumidity();
