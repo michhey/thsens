@@ -26,7 +26,7 @@ measured and transmitted. Additionally the battery voltage will be determined, a
 a battery low flag will be set in the transmitted messages.
 
 ## Configuration options
-### compile time configurations
+### Compile time configurations
 1. THS_DEBUG	enable debug output and command line interface via default arduino serial port
 2. DHT_PIN	pin number of the DHT sensor data pin
 3. DHTTYPE	type of the DHT sensor (the library supports several type, but only DHT22 has been tested by me)
@@ -34,14 +34,14 @@ a battery low flag will be set in the transmitted messages.
 5. TX_INDICATOR_LED_PIN	define this  to indicate transmission period via led (connected to this pin)
 6. MIN_VCC	minimum battery voltage in mV (for battery low flag in transmission messages)
 
-### runtime settings
+### Runtime settings
 These setting will be stored in EEPROM and are only changeable via serial command line interface (THS_DEBUG set)
 
 1. device id	unique number (0...63)
 2. channel	number (0...3) device id + channel form the complete device address
 3. tx interval  in minutes (measure and send every n minutes, valid 1...255)
 
-### commands (via serial interface)
+### Commands (via serial interface)
 The serial interface uses 57600baud. Each command has to be terminated by a newline.
 
 1. h	short help
@@ -52,6 +52,8 @@ The serial interface uses 57600baud. Each command has to be terminated by a newl
 6. i	show device information (battery voltage, CPU temperature...)
 
 # My setup
-I use a Arduino Pro Mini 5V (328). To reduce power consumption I removed the power led resistor and dc converter.
+I use a Arduino Pro Mini 5V (328). It will be powered directly by 3 AA batteries (connected to VCC, not Vin).
+
+To reduce power consumption I removed the power led resistor and dc converter.
 The schematics can be found in the doc directory.
 
