@@ -3,9 +3,9 @@ Wireless temperature and humidity sensor
 
 thsens is a Arduino sketch which measures temperature and humidity
 from a DHT22 sensor and transmits it via a cheap FS1000A 433MHz.
-It is primarily used as remote environmental sensor in an home automation setup.
+It is primarily used as remote environmental sensor in a home automation setup.
 
-The protocol used will be detected by the fhemduino project http://www.fhemwiki.de/wiki/FHEMduino
+The protocol used will be detected e.g. by the fhemduino project http://www.fhemwiki.de/wiki/FHEMduino
 (as EuroChron/Tchibo device).
 
 Particular emphasis was placed on low power consumption, because the device should run from AA batteries
