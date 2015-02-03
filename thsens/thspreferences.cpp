@@ -3,6 +3,8 @@
 
 #include <EEPROM.h>
 #include <TrueRandom.h>
+
+#include "thsconfig.h"
 #include "thspreferences.h"
 
 // load preference values from eeprom
@@ -20,7 +22,7 @@ void THSPreferences::load()
     deviceId = TrueRandom.random(64);
     channel = TrueRandom.random(4);
     // initialize tx interval to 15 (minutes)
-    txInterval = 15;
+    txInterval = DEFAULT_TX_INTERVAL;
     save();
   } else {
     deviceId = EEPROM.read(EE_PREF_ADDR_DEVICE_ID);

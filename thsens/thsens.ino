@@ -14,29 +14,21 @@
 #include <EEPROM.h>
 #include <avr/power.h>
 
+#include "thsconfig.h"
 #include "thspreferences.h"
 #include "thsutils.h"
+#include "thstxook.h"
 
-// configuration section
-// define pin number where the DHT data pin is connected to
-#define DHT_PIN       2
-// define DHT type
-#define DHTTYPE       DHT22
-
-// define pin number where the tx module data pin is connected to
-#define TRANSMITTER_PIN 10
-
-// define this to indicate transmission period via led
-//#define TX_INDICATOR_LED_PIN 13
-
-// minimum VCC in mV
-//  (battery low indicator will be set in transmitted messages if measured voltage is below this value)
-#define MIN_VCC      3500L
-
-// end of configuration section
+#define SYNC_HI  200
+#define SYNC_LO  8050
+#define ZERO_HI 200
+#define ZERO_LO 1010
+#define ONE_HI  200
+#define ONE_LO  2020
 
 THSPreferences prefs;
 THSUtils utils;
+THSTxOOK txOOK(TRANSMITTER_PIN, SYNC_HI, SYNC_LO, ZERO_HI, ZERO_LO, ONE_HI, ONE_LO);
 DHT dht(DHT_PIN, DHTTYPE);
 uint8_t last = 0;
 // kind of a hack (timer0_millis is the arduino core libs internal millis counter variable)
@@ -63,9 +55,7 @@ void setup() {
     digitalWrite(pinnr, LOW);
   }
 
-  // init transmitter pin
-  pinMode(TRANSMITTER_PIN, OUTPUT); 
-  digitalWrite(TRANSMITTER_PIN, LOW);
+  txOOK.init();
 
   // init tx indicator led
 #ifdef TX_INDICATOR_LED_PIN
@@ -82,8 +72,6 @@ void setup() {
   sendEnv();
 }
 
-const int ENVrepetition = 4;
-
 static void transmitBit(int nHighPulses, int nLowPulses) {
   digitalWrite(TRANSMITTER_PIN, HIGH);
   delayMicroseconds(nHighPulses);
@@ -91,46 +79,6 @@ static void transmitBit(int nHighPulses, int nLowPulses) {
   delayMicroseconds(nLowPulses);
 }
 
-#define SYNC_HI  200
-#define SYNC_LO  8050
-#define ZERO_HI 200
-#define ZERO_LO 1010
-#define ONE_HI  200
-#define ONE_LO  2020
-static void env_sendMessage(const char* message) {
-#ifdef TX_INDICATOR_LED_PIN
-  digitalWrite(TX_INDICATOR_LED_PIN, HIGH);
-#endif
-
-  for (int i = 0; i < ENVrepetition; i++) {
-    unsigned int pos = 0;
-    transmitBit(SYNC_HI,SYNC_LO);
-    while (message[pos] != '\0') {
-      switch(message[pos]) {
-      case '0':
-        transmitBit(ZERO_HI,ZERO_LO);
-        break;
-      case '1':
-        transmitBit(ONE_HI,ONE_LO);
-        break;
-      }
-      pos++;
-    }
-    switch(message[pos-1]) {
-    case '0':
-      transmitBit(ZERO_HI,ZERO_LO);
-      break;
-    case '1':
-      transmitBit(ONE_HI,ONE_LO);
-      break;
-    }
-    transmitBit(SYNC_LO,SYNC_LO);
-  }
-
-#ifdef TX_INDICATOR_LED_PIN
-  digitalWrite(TX_INDICATOR_LED_PIN, LOW);
-#endif
-}
 
 static String generateEnvMessage(uint8_t deviceId, uint8_t channel, bool battOk, bool manualSend, uint8_t trend, float temperature, float humidity) {
   String message = "";
@@ -192,7 +140,7 @@ static void sendEnv() {
 #endif
 
   long vcc = utils.getBatteryVoltage();
-  bool battOk = vcc > MIN_VCC;
+  bool battOk = vcc > MIN_BATTERY_VOLTAGE;
   bool manualSend = false;
   int trend = 0;
 
@@ -203,7 +151,7 @@ static void sendEnv() {
   Serial.print(txBuf);
   Serial.print("\n");
 #endif
-  env_sendMessage(txBuf);
+  txOOK.transmitMessage(txBuf);
 } 
 
 static void printEnv() {
