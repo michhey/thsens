@@ -3,16 +3,20 @@
 #ifndef THS_TX_OOK
 #define THS_TX_OOK
 
+#include "thsprotocol.h"
+
 /*
-    Implementation of OOK protocol (transmission)
+    Implementation of OOK (on-off-keying) protocol (transmission)
  */
 
 class THSTxOOK {
   public:
     THSTxOOK(int txPin, int syncHi, int syncLo, int zeroHi, int zeroLo, int oneHi, int oneLo);
+    THSTxOOK(int txPin, THSProtocol *prot);
+
     void init();
     void transmitBit(int numHighPulses, int numLowPulses);
-    void transmitMessage(const char* message);
+    void transmitMessage(String message);
 
   private:
     const int txPin;

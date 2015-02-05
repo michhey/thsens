@@ -18,6 +18,7 @@ One set of batteries should therefore last a year or more.
 2. LowPower library (http://www.rocketscream.com/blog/2011/07/04/lightweight-low-power-arduino-library)
 3. DHT library (https://github.com/adafruit/DHT-sensor-library)
 4. TrueRandom library (https://code.google.com/p/tinkerit/wiki/TrueRandom)
+5. If used in conjunction with FHEMduino the module 14_FHEMduino_Env.pm will be needed
 
 # Usage
 At first start a random device and channel id will be generated and stored in EEPROM.

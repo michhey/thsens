@@ -7,6 +7,9 @@
 #ifndef THS_CONFIG
 #define THS_CONFIG
 
+// define this for debug version
+//#define THS_DEBUG
+
 // define pin number where the DHT data pin is connected to
 #define DHT_PIN       2
 // define DHT type (see DHT library for supported types)

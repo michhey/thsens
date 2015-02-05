@@ -17,6 +17,11 @@ THSTxOOK::THSTxOOK(int txPinIn, int syncHiIn, int syncLoIn,
    zeroHi(zeroHiIn), zeroLo(zeroLoIn), oneHi(oneHiIn), oneLo(oneLoIn) {
 }
 
+THSTxOOK::THSTxOOK(int txPinIn, THSProtocol *prot)
+ : txPin(txPinIn), syncHi(prot->syncHi), syncLo(prot->syncLo),
+   zeroHi(prot->zeroHi), zeroLo(prot->zeroLo), oneHi(prot->oneHi), oneLo(prot->oneLo) {
+}
+
 void THSTxOOK::init() {
   // configure transmitter pin as output
   pinMode(txPin, OUTPUT); 
@@ -34,7 +39,7 @@ void THSTxOOK::transmitBit(int numHighPulses, int numLowPulses) {
   delayMicroseconds(numLowPulses);
 }
 
-void THSTxOOK::transmitMessage(const char* message) {
+void THSTxOOK::transmitMessage(String message) {
 #ifdef TX_INDICATOR_LED_PIN
   digitalWrite(TX_INDICATOR_LED_PIN, HIGH);
 #endif

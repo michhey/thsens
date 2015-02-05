@@ -1,11 +1,9 @@
 // 2015-01-28 <mhprog@gmx.net> http://opensource.org/licenses/mit-license.php
 
 /*
- *  wireless tempereature/humidity sensor
+ *  wireless tempereature/humidity sensor with low power consumption
  *
  */
-
-//#define THS_DEBUG
 
 #include <DHT.h>
 #include <Wire.h>
@@ -17,28 +15,27 @@
 #include "thsconfig.h"
 #include "thspreferences.h"
 #include "thsutils.h"
+#include "thsprotocolect.h"
 #include "thstxook.h"
-
-#define SYNC_HI  200
-#define SYNC_LO  8050
-#define ZERO_HI 200
-#define ZERO_LO 1010
-#define ONE_HI  200
-#define ONE_LO  2020
 
 THSPreferences prefs;
 THSUtils utils;
-THSTxOOK txOOK(TRANSMITTER_PIN, SYNC_HI, SYNC_LO, ZERO_HI, ZERO_LO, ONE_HI, ONE_LO);
+THSProtocolECT protECT;
+THSTxOOK txOOK(TRANSMITTER_PIN, &protECT);
 DHT dht(DHT_PIN, DHTTYPE);
-uint8_t last = 0;
 // kind of a hack (timer0_millis is the arduino core libs internal millis counter variable)
 extern long timer0_millis;
+
+#ifdef THS_DEBUG
+static char rxBuffer[32];
+#endif
 
 void setup() {  
 #ifdef THS_DEBUG
   // initialize serial:
   Serial.begin(57600);
   Serial.setTimeout(10);
+  rxBuffer[0] = 0;
 #else  
   power_usart0_disable();
 #endif
@@ -55,6 +52,10 @@ void setup() {
     digitalWrite(pinnr, LOW);
   }
 
+  protECT.deviceId = prefs.getDeviceId();
+  protECT.channel = prefs.getChannel();
+  protECT.manualSend = false;
+
   txOOK.init();
 
   // init tx indicator led
@@ -68,63 +69,9 @@ void setup() {
 
   prefs.load();
   
-  last = 0;
   sendEnv();
 }
 
-static void transmitBit(int nHighPulses, int nLowPulses) {
-  digitalWrite(TRANSMITTER_PIN, HIGH);
-  delayMicroseconds(nHighPulses);
-  digitalWrite(TRANSMITTER_PIN, LOW);
-  delayMicroseconds(nLowPulses);
-}
-
-
-static String generateEnvMessage(uint8_t deviceId, uint8_t channel, bool battOk, bool manualSend, uint8_t trend, float temperature, float humidity) {
-  String message = "";
-  // ID Part 1
-  message = utils.int2bin(deviceId, 4);
-  // channel
-  message += utils.int2bin(channel, 2);
-  // ID Part 2
-  message += utils.int2bin(deviceId >> 4, 2);
-  // Low battery warning bit (1 = low batt)
-  message += battOk ? "0" : "1";
-  // trend ( 0 = cont., 1 = rising, 2 = falling )
-  message += utils.int2bin(trend, 2);
-  // forced send bit (1 = forced)
-  message += manualSend ? "1" : "0";
-  // unknown
-  message += utils.int2bin(0, 5);
-  // humidity
-  int h = int(humidity);
-  message += utils.int2bin(h, 7);
-  // temperature
-  int t;
-  if (temperature < 0) {
-    t = (int((-temperature) * 10.0) & 0xeff) + 0x800;
-  } 
-  else {
-    t = int(temperature * 10.0) & 0xeff;
-  }
-  message += utils.int2bin(t, 12);
-
-  return message;
-}
-
-char rxBuffer[32];
-char txBuf[37];
-
-/*
- I  Device Id
- C  Channel
- B  Battery low
- TT Trend
- F  Force send
- t  temperature
- h  humidity
- c  checksum
- */
 static void sendEnv() {
   float temperature = dht.readTemperature();
   float humidity = dht.readHumidity();
@@ -139,23 +86,21 @@ static void sendEnv() {
   }
 #endif
 
-  long vcc = utils.getBatteryVoltage();
-  bool battOk = vcc > MIN_BATTERY_VOLTAGE;
-  bool manualSend = false;
-  int trend = 0;
+  protECT.batteryOk = utils.getBatteryVoltage() > MIN_BATTERY_VOLTAGE;
+  protECT.temperature = temperature;
+  protECT.humidity = humidity;
+  String message = protECT.encode();
+  txOOK.transmitMessage(message);
 
-  generateEnvMessage(prefs.getDeviceId(), prefs.getChannel(), battOk, manualSend,
-                    trend, temperature, humidity).toCharArray(txBuf, 37);
 #ifdef THS_DEBUG
   Serial.print(" ");
-  Serial.print(txBuf);
+  Serial.print(message);
   Serial.print("\n");
 #endif
-  txOOK.transmitMessage(txBuf);
 } 
 
-static void printEnv() {
 #ifdef THS_DEBUG
+static void printEnv() {
   float temperature = dht.readTemperature();
   float humidity = dht.readHumidity();
   if (!isnan(temperature)) {
@@ -167,19 +112,17 @@ static void printEnv() {
     Serial.print(humidity,1);
   }
   Serial.print("\n");
-#endif
 } 
 
 static inline void processCommands() {
   rxBuffer[31] = 0;
 
-#ifdef THS_DEBUG
   while (Serial.available() > 0) {
     Serial.readBytesUntil('\n', rxBuffer, sizeof(rxBuffer) - 1);
     char in = rxBuffer[0];
     switch (in) {
     case 'V':
-      Serial.print(F("version: THSens V1.3 2015-01-31\n"));
+      Serial.print(F("version: THSens V0.1.3 " __DATE__ "\n"));
       break;
     case 'i':
       Serial.print(F("device id "));
@@ -225,6 +168,8 @@ static inline void processCommands() {
           }
           prefs.setTxInterval(t);
           prefs.save();
+          protECT.deviceId = prefs.getDeviceId();
+          protECT.channel = prefs.getChannel();
         } else {
             Serial.print(F("invalid parameters\n"));
             Serial.print(rxBuffer);
@@ -254,7 +199,9 @@ static inline void processCommands() {
       }
       break;
     case 'E':
+      protECT.manualSend = true;
       sendEnv();
+      protECT.manualSend = false;
       break;
     case 'S':
       printEnv();
@@ -284,52 +231,58 @@ static inline void processCommands() {
       break;
     }
   }
-#endif
 }
+#endif
 
 
 void loop() {
-  if (last >= prefs.getTxInterval()) {
-    last = 0;
-    sendEnv();
-  }
+  sendEnv();
 #ifdef THS_DEBUG
-  for (int d = 0; d < 60; d++) {
-    if (Serial.available() > 0) {
-      processCommands();
-    }
-    
+  for (int seconds = 60 * prefs.getTxInterval(); seconds ; seconds--) {
+    // sleep minimum available time with WDT to test the algorithm, but
+    // try not to disturb debugging (UART is disabled while in powerdown mode)
     uint8_t storeADCSRA = ADCSRA;
     ADCSRA = 0;
     power_adc_disable();
-    LowPower.powerDown(SLEEP_500MS, ADC_ON, BOD_OFF);
+    LowPower.powerDown(SLEEP_30MS, ADC_ON, BOD_OFF);
     noInterrupts();
-    timer0_millis += 500;
+    timer0_millis += 30;
     interrupts();
     power_adc_enable();
     ADCSRA = storeADCSRA;
+    delay(485);
+
+    if (Serial.available() > 0) {
+      processCommands();
+    }
     delay(500);
 
+    if (Serial.available() > 0) {
+      processCommands();
+    }
   }
 #else
   uint8_t storeADCSRA = ADCSRA;
   ADCSRA = 0;
   power_adc_disable();
-  for (uint8_t sleeps = 0; sleeps < 7; sleeps++) {
+  unsigned int seconds = 60 * prefs.getTxInterval();
+  
+  // maximum sleep time with WDT is 8 seconds
+  for (unsigned int sleepInterval8s = seconds / 8; sleepInterval8s; sleepInterval8s--) {
     LowPower.powerDown(SLEEP_8S, ADC_ON, BOD_OFF);
     noInterrupts();
     timer0_millis += 8000;
     interrupts();
   }
-  for (uint8_t sleeps = 0; sleeps < 1; sleeps++) {
-    LowPower.powerDown(SLEEP_4S, ADC_ON, BOD_OFF);
+  // wait remaining seconds in one second interval
+  for (unsigned int sleepInterval1s = seconds % 8; sleepInterval1s; sleepInterval1s--) {
+    LowPower.powerDown(SLEEP_1S, ADC_ON, BOD_OFF);
     noInterrupts();
-    timer0_millis += 4000;
+    timer0_millis += 1000;
     interrupts();
   }
   power_adc_enable();
   ADCSRA = storeADCSRA;
 #endif
-  last++;
 }
 
