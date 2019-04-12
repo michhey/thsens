@@ -41,7 +41,7 @@ asTransmitter temperatureTx(AS_TYPE_TEMPERATURE, DEVICE_ID, TRANSMITTER_PIN);  /
 asTransmitter humidityTx(AS_TYPE_HUMIDITY, DEVICE_ID, TRANSMITTER_PIN);        // (DeviceType, DeviceID, OutputPin)
 DHT dht(DHT_PIN, DHTTYPE);
 // kind of a hack (timer0_millis is the arduino core libs internal millis counter variable)
-extern long timer0_millis;
+extern volatile unsigned long timer0_millis;
 boolean battStateOk;
 
 #ifdef THS_DEBUG
@@ -100,10 +100,11 @@ static void sendEnv(boolean manualSend) {
     Serial.print(humidity,1);
   }
 #endif
+  long batteryVoltage = utils.getBatteryVoltage();
   if (battStateOk) {
-    battStateOk = utils.getBatteryVoltage() > MIN_BATTERY_VOLTAGE;
+    battStateOk = batteryVoltage > MIN_BATTERY_VOLTAGE;
   } else {
-    battStateOk = utils.getBatteryVoltage() > (MIN_BATTERY_VOLTAGE + BATTERY_VOLTAGE_HYSTERESIS);
+    battStateOk = batteryVoltage > (MIN_BATTERY_VOLTAGE + BATTERY_VOLTAGE_HYSTERESIS);
   }
   
   uint8_t battState = battStateOk ? AS_BATT_STATE_OK : AS_BATT_STATE_BAD;
@@ -115,7 +116,7 @@ static void sendEnv(boolean manualSend) {
   delay(50);
   humidityTx.send(humVal, AS_BATT_STATE_OK, manualSend);
   delay(50);
-  voltageTx.send(utils.getBatteryVoltage(), battState, manualSend);
+  voltageTx.send((uint16_t)batteryVoltage, battState, manualSend);
 
 #ifdef THS_DEBUG
   Serial.print(" tmp ");
@@ -254,4 +255,3 @@ void loop() {
   ADCSRA = storeADCSRA;
 #endif
 }
-
