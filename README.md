@@ -58,3 +58,4 @@ I use a Arduino Pro Mini 5V (328). It will be powered directly by 3 AA batteries
 To reduce power consumption I removed the power led resistor and dc converter.
 The schematics can be found in the doc directory.
 
+You last edited this 6 years ago!!!!!
